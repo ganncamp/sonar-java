@@ -28,18 +28,38 @@ import org.sonar.plugins.java.api.caching.CacheContext;
 public class DefaultInputFileScannerContext extends DefaultModuleScannerContext implements InputFileScannerContext {
   protected final InputFile inputFile;
 
+  /**
+   * Create a scanner context bound to a specific input file.
+   *
+   * @param inputFile the input file associated with this context
+   * @param javaVersion the Java language level to use for this context
+   * @param inAndroidContext `true` if the file is analyzed in an Android project context, `false` otherwise
+   */
   public DefaultInputFileScannerContext(@Nullable SonarComponents sonarComponents, InputFile inputFile, JavaVersion javaVersion, boolean inAndroidContext,
                                         @Nullable CacheContext cacheContext) {
     super(sonarComponents, javaVersion, inAndroidContext, cacheContext);
     this.inputFile = inputFile;
   }
 
+  /**
+   * Creates a scanner context bound to a specific input file.
+   *
+   * @param inputFile the input file associated with this scanner context
+   * @param inAndroidContext whether the file is being scanned in an Android-specific context
+   * @param projectContextModel optional project-level model reader used to access shared project information
+   */
   public DefaultInputFileScannerContext(@Nullable SonarComponents sonarComponents, InputFile inputFile, JavaVersion javaVersion, boolean inAndroidContext,
     @Nullable CacheContext cacheContext, @Nullable ProjectContextModelReader projectContextModel) {
     super(sonarComponents, javaVersion, inAndroidContext, cacheContext, projectContextModel);
     this.inputFile = inputFile;
   }
 
+  /**
+   * Registers an issue on the current input file that is not associated with a specific line.
+   *
+   * @param javaCheck the rule or check reporting the issue
+   * @param message   a human-readable description of the issue
+   */
   @Override
   public void addIssueOnFile(JavaCheck javaCheck, String message) {
     addIssue(-1, javaCheck, message);

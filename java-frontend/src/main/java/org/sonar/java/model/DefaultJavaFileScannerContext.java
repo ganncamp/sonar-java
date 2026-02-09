@@ -60,12 +60,37 @@ public class DefaultJavaFileScannerContext extends DefaultInputFileScannerContex
   private List<String> lines = null;
   private String content;
 
+  /**
+   * Creates a scanner context for the given Java compilation unit using the provided components.
+   *
+   * @param tree the compilation unit AST root
+   * @param inputFile the input file being scanned
+   * @param semanticModel semantic model for the file (may be null)
+   * @param sonarComponents Sonar components used to access project services (may be null)
+   * @param javaVersion the Java language version to use
+   * @param fileParsed true if the file has already been parsed
+   * @param inAndroidContext true when analyzing an Android project
+   * @param cacheContext cache context for reusable analysis data (may be null)
+   */
   public DefaultJavaFileScannerContext(CompilationUnitTree tree, InputFile inputFile, Sema semanticModel,
     @Nullable SonarComponents sonarComponents, JavaVersion javaVersion,
     boolean fileParsed, boolean inAndroidContext, @Nullable CacheContext cacheContext) {
     this(tree, inputFile, semanticModel, sonarComponents, javaVersion, fileParsed, inAndroidContext, cacheContext, null);
   }
 
+  /**
+   * Creates a new DefaultJavaFileScannerContext for scanning a Java compilation unit and initializes its internal state.
+   *
+   * @param tree the compilation unit AST root
+   * @param inputFile the input file being scanned
+   * @param semanticModel the semantic model for the file, or {@code null} if semantic analysis is not available
+   * @param sonarComponents SonarQube components used to access project services, or {@code null} when unavailable
+   * @param javaVersion the Java language version for this file
+   * @param fileParsed {@code true} if the file was successfully parsed, {@code false} otherwise
+   * @param inAndroidContext {@code true} when scanning within an Android-specific context
+   * @param cacheContext cache helper for analysis artifacts, or {@code null} when caching is disabled
+   * @param projectContextModel reader for project context model, or {@code null} when not provided
+   */
   public DefaultJavaFileScannerContext(CompilationUnitTree tree, InputFile inputFile, Sema semanticModel,
                                        @Nullable SonarComponents sonarComponents, JavaVersion javaVersion,
                                        boolean fileParsed, boolean inAndroidContext, @Nullable CacheContext cacheContext, @Nullable ProjectContextModelReader projectContextModel) {

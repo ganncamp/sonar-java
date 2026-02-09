@@ -15,12 +15,21 @@ public class DemoApplication implements CommandLineRunner {
   A a;
 
   @Autowired
-  Named second; // Noncompliant
+  Named second; /**
+   * Application entry point that starts the Spring Boot application.
+   *
+   * @param args command-line arguments passed to the application
+   */
 
   public static void main(String[] args) {
     SpringApplication.run(DemoApplication.class, args);
   }
 
+  /**
+   * Prints a greeting to standard output using the configured name.
+   *
+   * Writes "Hello,  {name}!" where {name} is obtained from the application's name source.
+   */
   @Override
   public void run(String... args) throws Exception {
     System.out.println("Hello,  " + nameSource.getName() + "!");

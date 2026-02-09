@@ -104,6 +104,16 @@ public class JavaCheckVerifier implements CheckVerifier {
 
   private ProjectContextModel projectContextModel = new ProjectContextModel();
 
+  /**
+   * Create and configure a MultiFileVerifier based on this verifier's current configuration.
+   *
+   * The created verifier is initialized with the configured Java version and classpath,
+   * wired visitors (checks, project context model visitor, and comment visitor), optional
+   * caching and Android context, and then used to scan the configured input files. Collected
+   * comments and issues are added to the returned verifier.
+   *
+   * @return a configured MultiFileVerifier containing parsed files, collected comments, and reported issues ready for verification
+   */
   private MultiFileVerifier createVerifier() {
     MultiFileVerifier verifier = MultiFileVerifier.create(Paths.get(files.get(0).uri()), UTF_8);
 

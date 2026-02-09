@@ -83,13 +83,19 @@ public interface ModuleScannerContext {
   String getModuleKey();
 
   /**
-   * @return The Sonar product (SONARQUBE/SONARLINT) which forms the current execution context of the scan.
-   * See also {@link SonarRuntime#getProduct()}.
-   * In a production environment, this method never returns null but in testing contexts, it may happen.
+   * Provides the Sonar product that forms the current execution context of the scan.
+   *
+   * @return the current {@link SonarProduct}, or `null` in testing contexts
+   * @see SonarRuntime#getProduct()
    */
   @CheckForNull
   SonarProduct sonarProduct();
 
+  /**
+   * Provides access to the project's ProjectContextModelReader when available.
+   *
+   * @return the {@link ProjectContextModelReader} for the project, or `null` if none is available
+   */
   @Nullable
   default ProjectContextModelReader getProjectContextModel() {
     return null;

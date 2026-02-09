@@ -37,11 +37,32 @@ public class DefaultModuleScannerContext implements ModuleScannerContext {
   protected final CacheContext cacheContext;
   private final ProjectContextModelReader projectContextModelReader;
 
+  /**
+   * Constructs a DefaultModuleScannerContext configured with the provided Sonar components, Java version,
+   * Android context flag, and cache context. The ProjectContextModelReader is not set.
+   *
+   * @param sonarComponents Sonar components used to access project and runtime context, or `null` if unavailable
+   * @param javaVersion the Java version to use for analysis
+   * @param inAndroidContext `true` when running in an Android-specific scanning context
+   * @param cacheContext cache context to use for incremental/cache-aware operations, or `null` to use a default
+   */
   public DefaultModuleScannerContext(@Nullable SonarComponents sonarComponents, JavaVersion javaVersion, boolean inAndroidContext,
     @Nullable CacheContext cacheContext) {
     this(sonarComponents, javaVersion, inAndroidContext, cacheContext, null);
   }
 
+  /**
+   * Creates a DefaultModuleScannerContext with the given Sonar components, Java version, Android flag,
+   * cache context and optional project context model reader.
+   *
+   * If `cacheContext` is null, a CacheContext is created via CacheContextImpl.of(sonarComponents).
+   *
+   * @param sonarComponents             Sonar components used to access project and runtime services; may be null
+   * @param javaVersion                 Java version to associate with this context
+   * @param inAndroidContext            true when scanning in an Android-specific context
+   * @param cacheContext                cache context to use; if null a default CacheContext is created
+   * @param projectContextModelReader   optional reader for the project context model; may be null
+   */
   public DefaultModuleScannerContext(@Nullable SonarComponents sonarComponents, JavaVersion javaVersion, boolean inAndroidContext,
     @Nullable CacheContext cacheContext, @Nullable ProjectContextModelReader projectContextModelReader) {
     this.sonarComponents = sonarComponents;
@@ -55,6 +76,14 @@ public class DefaultModuleScannerContext implements ModuleScannerContext {
     this.projectContextModelReader = projectContextModelReader;
   }
 
+  /**
+   * Adds an issue to the current project for the specified Java check with the provided message.
+   *
+   * The issue is reported at the project level (no specific file or line).
+   *
+   * @param check   the Java check (rule) the issue relates to
+   * @param message the human-readable issue message
+   */
   public void addIssueOnProject(JavaCheck check, String message) {
     sonarComponents.addIssue(getProject(), check, -1, message, 0);
   }
@@ -94,6 +123,11 @@ public class DefaultModuleScannerContext implements ModuleScannerContext {
     return sonarComponents.getModuleKey();
   }
 
+  /**
+   * Retrieve the SonarProduct from the current SonarComponents runtime, or `null` when unavailable.
+   *
+   * @return `null` if `sonarComponents` or its context is `null`; otherwise the current `SonarProduct`
+   */
   @CheckForNull
   @Override
   public SonarProduct sonarProduct() {
@@ -111,6 +145,11 @@ public class DefaultModuleScannerContext implements ModuleScannerContext {
     return context.runtime().getProduct();
   }
 
+  /**
+   * Accesses the project's context model reader.
+   *
+   * @return the ProjectContextModelReader associated with this context, or `null` if none was provided
+   */
   @Nullable
   @Override
   public ProjectContextModelReader getProjectContextModel() {

@@ -66,6 +66,16 @@ public class JavaFrontend {
   private final JavaAstScanner astScannerForGeneratedFiles;
   private final ProjectContextModel projectContextModel = new ProjectContextModel();
 
+  /**
+   * Constructs a JavaFrontend configured to run analysis over main, test and generated Java sources.
+   *
+   * @param javaVersion the Java language version to use for parsing and analysis
+   * @param sonarComponents optional components provider (may supply classpaths, extra checks, context flags and other project services); may be null
+   * @param measurer optional measurer used to collect metrics and to supply a test-file measurer; may be null
+   * @param javaResourceLocator locator for Java resources used by checks
+   * @param postAnalysisIssueFilter optional filter applied to issues after analysis; may be null
+   * @param visitors additional Java checks to register for main-source analysis
+   */
   public JavaFrontend(JavaVersion javaVersion, @Nullable SonarComponents sonarComponents, @Nullable Measurer measurer,
     JavaResourceLocator javaResourceLocator, @Nullable SonarJavaIssueFilter postAnalysisIssueFilter, JavaCheck... visitors) {
     this.javaVersion = javaVersion;
@@ -115,6 +125,14 @@ public class JavaFrontend {
     astScannerForGeneratedFiles.setVisitorBridge(createVisitorBridge(jspCodeVisitors, jspClasspath, javaVersion, sonarComponents, inAndroidContext));
   }
 
+  /**
+   * Loads properties files provided by SonarComponents into the project context model.
+   *
+   * <p>If {@code sonarComponents} is null this method does nothing. For each readable
+   * properties file the parsed {@link Properties} instance is stored in
+   * {@code projectContextModel.propertiesFiles} keyed by the file's relative path.
+   * Individual files that fail to be read are skipped.
+   */
   private void visitPropertiesFiles() {
     if (sonarComponents == null) {
       return;
@@ -130,6 +148,16 @@ public class JavaFrontend {
     }
   }
 
+  /**
+   * Create a VisitorsBridge configured for analysis with the supplied visitors, classpath and Java version.
+   *
+   * @param codeVisitors    the Java checks/visitors to register with the bridge
+   * @param classpath       classpath entries to use during analysis
+   * @param javaVersion     the Java language level to apply
+   * @param sonarComponents optional Sonar components used by visitors; may be null
+   * @param inAndroidContext true to enable Android-specific context behavior
+   * @return the configured {@link VisitorsBridge} instance
+   */
   private static VisitorsBridge createVisitorBridge(
     Iterable<JavaCheck> codeVisitors, List<File> classpath, JavaVersion javaVersion, @Nullable SonarComponents sonarComponents, boolean inAndroidContext) {
     VisitorsBridge visitorsBridge = new VisitorsBridge(codeVisitors, classpath, sonarComponents, javaVersion);
@@ -137,11 +165,27 @@ public class JavaFrontend {
     return visitorsBridge;
   }
 
+  /**
+   * Check whether the current analysis has been cancelled.
+   *
+   * @return `true` if the analysis has been cancelled, `false` otherwise.
+   */
   @VisibleForTesting
   boolean analysisCancelled() {
     return sonarComponents != null && sonarComponents.analysisCancelled();
   }
 
+  /**
+   * Orchestrates scanning and measurement of main, test, and generated Java input files.
+   *
+   * <p>Loads project properties, optionally leverages server-side caching to skip parsing of unchanged files,
+   * selects an appropriate scanning strategy (file-by-file or batch) based on context and configuration, and
+   * delegates files to the configured scanners for analysis and measurement.</p>
+   *
+   * @param sourceFiles   iterable of project main/source InputFile instances to analyze
+   * @param testFiles     iterable of test InputFile instances to analyze
+   * @param generatedFiles iterable of generated-source InputFile instances (e.g., JSP-generated sources) to analyze
+   */
   public void scan(Iterable<InputFile> sourceFiles, Iterable<InputFile> testFiles, Iterable<? extends InputFile> generatedFiles) {
     visitPropertiesFiles();
     if (canOptimizeScanning()) {
@@ -188,15 +232,15 @@ public class JavaFrontend {
   }
 
   /**
-   * Scans the files given as input in batch mode.
-   * <p>
-   * The batch size used is determined by configuration.
-   * This batch size is then used as a threshold: files are added to a batch until the threshold is passed.
-   * Once the threshold is passed, the batch is processed for analysis.
-   * <p>
-   * If no batch size is configured, the input files are scanned as a single batch.
+   * Scan multiple input files using the provided batch context.
    *
-   * @param inputFiles The collections of files to scan
+   * Processes the given input file groups in batches according to the configured batch size;
+   * if no batch size is configured, all files are scanned as a single batch. Module-info files
+   * are filtered out before batching.
+   *
+   * @param context the batch context that provides classpath, scanner selection and end-of-analysis handling
+   * @param inputFiles one or more collections of input files to include in the batching and scan
+   * @throws AnalysisException if a batch error occurs and analysis is configured to fail on errors
    */
   private void scanAsBatch(BatchModeContext context, Iterable<? extends InputFile>... inputFiles) {
     List<InputFile> files = new ArrayList<>();
@@ -244,6 +288,13 @@ public class JavaFrontend {
     }
   }
 
+  /**
+   * Processes a batch of input files: parses them with the context's classpath, updates progress, and runs environment cleanup after parsing.
+   *
+   * @param context the batch context providing descriptors, classpath and scanner selection for inputs
+   * @param batchFiles the list of input files to parse in this batch
+   * @param analysisProgress tracker used to mark the start and end of the batch and to report progress
+   */
   private <T extends InputFile> void scanBatch(BatchModeContext context, List<T> batchFiles, AnalysisProgress analysisProgress) {
     analysisProgress.startBatch(batchFiles.size());
     Set<Runnable> environmentsCleaners = new HashSet<>();
@@ -273,9 +324,23 @@ public class JavaFrontend {
 
     List<File> getClasspath();
 
-    JavaAstScanner selectScanner(InputFile input);
+    /**
+ * Choose the JavaAstScanner that should be used to scan the given input file.
+ *
+ * @param input the input file for which a scanner is requested
+ * @return the JavaAstScanner appropriate for the provided input file
+ */
+JavaAstScanner selectScanner(InputFile input);
 
-    void endOfAnalysis(ProjectContextModelReader projectContextModel);
+    /**
+ * Perform end-of-analysis tasks for this batch context using project-wide model data.
+ *
+ * This is invoked once after scanning completes to allow the context to finalize state
+ * and to propagate the provided project context model to scanners and visitors.
+ *
+ * @param projectContextModel reader that exposes project-level properties and resources
+ */
+void endOfAnalysis(ProjectContextModelReader projectContextModel);
   }
 
   class AutoScanBatchContext implements BatchModeContext {
@@ -295,11 +360,22 @@ public class JavaFrontend {
       return globalClasspath;
     }
 
+    /**
+     * Selects the appropriate JavaAstScanner for a given input file.
+     *
+     * @param input the input file to analyze
+     * @return the test scanner if the input is a test file, otherwise the main scanner
+     */
     @Override
     public JavaAstScanner selectScanner(InputFile input) {
       return input.type() == InputFile.Type.TEST ? astScannerForTests : astScanner;
     }
 
+    /**
+     * Propagates the provided project context model to all configured AST scanners so they can perform end-of-analysis work.
+     *
+     * @param projectContextModel reader that exposes project-level properties and context for scanners' end-of-analysis processing
+     */
     @Override
     public void endOfAnalysis(ProjectContextModelReader projectContextModel) {
       astScanner.endOfAnalysis(projectContextModel);
@@ -333,11 +409,22 @@ public class JavaFrontend {
       return scanner.getClasspath();
     }
 
+    /**
+     * Provides the scanner used for files in this batch context.
+     *
+     * @param input the input file to select a scanner for (ignored; this context uses a single configured scanner)
+     * @return the scanner configured for this batch context
+     */
     @Override
     public JavaAstScanner selectScanner(InputFile input) {
       return scanner;
     }
 
+    /**
+     * Performs end-of-analysis actions on the configured scanner using the provided project context.
+     *
+     * @param projectContextModel reader that provides project-wide context and properties to apply during end-of-analysis
+     */
     @Override
     public void endOfAnalysis(ProjectContextModelReader projectContextModel) {
       scanner.endOfAnalysis(projectContextModel);

@@ -259,6 +259,11 @@ public class SonarComponents extends CheckRegistrar.RegistrarContext {
     return javaTestClasspath.getElements();
   }
 
+  /**
+   * Builds a classpath used for JSP analysis by combining the plugin JAR with the project's Java classpath.
+   *
+   * @return a list of files representing the JSP classpath; the first element is the plugin JAR followed by entries from the Java classpath
+   */
   public List<File> getJspClasspath() {
     List<File> jspClasspath = new ArrayList<>();
     // sonar-java jar is added to classpath in order to have semantic information on code generated from JSP files
@@ -267,6 +272,11 @@ public class SonarComponents extends CheckRegistrar.RegistrarContext {
     return jspClasspath;
   }
 
+  /**
+   * Enumerates project MAIN input files whose path matches the application properties pattern.
+   *
+   * @return an iterable of {@link InputFile} objects of type MAIN whose path matches {@link #APPLICATION_PROPERTIES_FILE_PATTERN}
+   */
   public Iterable<InputFile> getPropertiesFiles(){
     return fs.inputFiles(fs.predicates().and(
       fs.predicates().matchesPathPattern(APPLICATION_PROPERTIES_FILE_PATTERN),

@@ -240,6 +240,17 @@ public class VisitorsBridge {
     }
   }
 
+  /**
+   * Processes a single Java file: updates scanning counters, prepares a compilation unit and symbol table if available,
+   * creates a scanner context, and executes the applicable scanners for the file.
+   *
+   * The method increments either the skipped or fully scanned file counter depending on `fileCanBeSkipped`.
+   * If `parsedTree` is a compilation unit, it is used as the compilation unit and a Sonar symbol table is created.
+   * A JavaFileScannerContext is then created and each applicable scanner is executed in turn.
+   *
+   * @param parsedTree        the parsed AST for the file, or `null` if the file was not parsed
+   * @param fileCanBeSkipped  `true` if unchanged-file skipping is permitted for this file (affects which scanners are run)
+   */
   public void visitFile(@Nullable Tree parsedTree, boolean fileCanBeSkipped) {
     if (fileCanBeSkipped) {
       skippedFileCount++;
@@ -336,6 +347,15 @@ public class VisitorsBridge {
     );
   }
 
+  /**
+   * Create a JavaFileScannerContext for scanning the given compilation unit.
+   *
+   * @param tree the compilation unit AST for the file to scan
+   * @param semanticModel the semantic model (symbols/type info) for the compilation unit, or `null` if unavailable
+   * @param sonarComponents optional Sonar components supplying analysis utilities
+   * @param fileParsed `true` if the source file was successfully parsed and an AST is available, `false` otherwise
+   * @return a JavaFileScannerContext configured for the current file, Java version, analysis flags and cache context
+   */
   protected JavaFileScannerContext createScannerContext(
     CompilationUnitTree tree, @Nullable Sema semanticModel, SonarComponents sonarComponents, boolean fileParsed) {
     return new DefaultJavaFileScannerContext(
@@ -350,6 +370,16 @@ public class VisitorsBridge {
     );
   }
 
+  /**
+   * Create a ModuleScannerContext configured for module-level scanning.
+   *
+   * @param sonarComponents optional Sonar components providing project analysis context and utilities
+   * @param javaVersion the active Java version to apply for compatibility checks
+   * @param inAndroidContext true if analysis should consider Android-specific semantics
+   * @param cacheContext optional cache context used for incremental analysis
+   * @param projectContextModelReader optional reader for the project's context/model
+   * @return a ModuleScannerContext configured with the provided components and settings
+   */
   protected ModuleScannerContext createScannerContext(
     @Nullable SonarComponents sonarComponents, JavaVersion javaVersion, boolean inAndroidContext, @Nullable CacheContext cacheContext,
     @Nullable ProjectContextModelReader projectContextModelReader
@@ -357,6 +387,14 @@ public class VisitorsBridge {
     return new DefaultModuleScannerContext(sonarComponents, javaVersion, inAndroidContext, cacheContext, projectContextModelReader);
   }
 
+  /**
+   * Creates and runs a Sonar symbol table visitor for the current file when semantic data should be produced.
+   *
+   * If Sonar components are available, the analysis is not running in SonarLint context, and the current file is not
+   * a generated file, this method instantiates a SonarSymbolTableVisitor and visits the provided compilation unit.
+   *
+   * @param tree the compilation unit tree to build the symbol table from
+   */
   private void createSonarSymbolTable(CompilationUnitTree tree) {
     if (sonarComponents != null
       && !sonarComponents.isSonarLintContext()
@@ -380,10 +418,23 @@ public class VisitorsBridge {
     }
   }
 
+  /**
+   * Sets the InputFile that will be considered the currently processed file.
+   *
+   * @param inputFile the input file to mark as current
+   */
   public void setCurrentFile(InputFile inputFile) {
     this.currentFile = inputFile;
   }
 
+  /**
+   * Finalizes analysis: logs a brief optimization summary and notifies every scanner that implements
+   * {@link EndOfAnalysis} by calling its {@code endOfAnalysis} method with a module scanner context
+   * created from the bridge's current settings.
+   *
+   * @param projectContextModel reader providing project-level context to include in the created module scanner context;
+   *                            may be {@code null}
+   */
   public void endOfAnalysis(ProjectContextModelReader projectContextModel) {
     if (skippedFileCount > 0) {
       LOG.info("Optimized analysis for {} of {} files.", skippedFileCount, skippedFileCount + fullyScannedFileCount);

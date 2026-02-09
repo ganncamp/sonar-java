@@ -79,30 +79,59 @@ public class JavaAstScanner {
       .collect(Collectors.partitioningBy(visitor::scanWithoutParsing));
   }
 
+  /**
+   * Scans the provided input files and visits their Java ASTs without applying a modification hook or a project context reader.
+   *
+   * @param inputFiles iterable of input files to scan
+   */
   public void scan(Iterable<? extends InputFile> inputFiles) {
     scan(inputFiles, compilationUnitTree -> {}, null);
   }
 
+  /**
+   * Scans the provided input files and performs analysis using the supplied project context model reader.
+   *
+   * @param inputFiles iterable of input files to scan
+   * @param projectContextModelReader reader used at end of analysis to supply project context model (may be {@code null})
+   */
   public void scan(Iterable<? extends InputFile> inputFiles, ProjectContextModelReader projectContextModelReader) {
     scan(inputFiles, compilationUnitTree -> {}, projectContextModelReader);
   }
 
   /**
-   * Scan the given files and modify
+   * Scans the provided input files and applies a modification hook to each compilation unit before analysis.
    *
-   * @param inputFiles The list of files to analyze
-   * @param modifyCompilationUnit allow you to modify the ast before running the analysis on it, for example to remove semantic information
+   * @param inputFiles the files to analyze
+   * @param modifyCompilationUnit a consumer invoked with each compilation unit so callers can modify the AST before analysis (for example, to remove semantic information)
    */
   @VisibleForTesting
   public void scanForTesting(Iterable<? extends InputFile> inputFiles, Consumer<CompilationUnitTree> modifyCompilationUnit) {
     scan(inputFiles, modifyCompilationUnit, null);
   }
 
+  /**
+   * Scans the given input files, applying the provided modification hook to each parsed compilation unit and using the provided project context model.
+   *
+   * @param inputFiles iterable of input files to scan
+   * @param modifyCompilationUnit consumer invoked with each CompilationUnitTree after parsing (may modify the tree for testing)
+   * @param modelReader project context model reader used during scan and end-of-analysis processing
+   */
   @VisibleForTesting
   public void scanForTesting(Iterable<? extends InputFile> inputFiles, Consumer<CompilationUnitTree> modifyCompilationUnit, ProjectContextModelReader modelReader) {
     scan(inputFiles, modifyCompilationUnit, modelReader);
   }
 
+  /**
+   * Scans and processes the given Java input files: parses each file, invokes a per-file modification hook,
+   * visits the resulting compilation unit through the configured visitor, and performs cleanup and end-of-analysis tasks.
+   *
+   * This method filters module-info.java files when appropriate, reports progress and cancellation, and ensures
+   * endOfAnalysis is called with the provided project context model reader even if parsing fails.
+   *
+   * @param inputFiles iterable of input files to scan; module-info.java files may be filtered based on the configured Java version
+   * @param modifyCompilationUnit consumer invoked with the parsed CompilationUnitTree for each file prior to visiting
+   * @param projectContextModelReader optional project context model reader passed to endOfAnalysis (may be null)
+   */
   private void scan(Iterable<? extends InputFile> inputFiles, Consumer<CompilationUnitTree> modifyCompilationUnit, @Nullable ProjectContextModelReader projectContextModelReader) {
     List<? extends InputFile> filesNames = filterModuleInfo(inputFiles).toList();
     AnalysisProgress analysisProgress = new AnalysisProgress(filesNames.size());
@@ -123,6 +152,17 @@ public class JavaAstScanner {
     }
   }
 
+  /**
+   * Filters out module-info.java files when the configured Java version is 8 or lower.
+   *
+   * <p>If the visitor's Java version is explicitly set and is less than or equal to 8,
+   * this method removes any input file named "module-info.java" and logs a one-time
+   * warning about the misconfigured Java version; otherwise it returns the input files unchanged.</p>
+   *
+   * @param inputFiles iterable of input files to filter
+   * @param <T> type of the input files
+   * @return a stream of input files with "module-info.java" excluded when the configured Java version is set and <= 8, otherwise the original files
+   */
   public <T extends InputFile> Stream<T> filterModuleInfo(Iterable<T> inputFiles) {
     JavaVersion javaVersion = visitor.getJavaVersion();
     return StreamSupport.stream(inputFiles.spliterator(), false)
@@ -136,6 +176,11 @@ public class JavaAstScanner {
       });
   }
 
+  /**
+   * Finalizes analysis by notifying the visitor of end-of-analysis and reporting any collected undefined types.
+   *
+   * @param projectContextModel reader providing project-level analysis context (may be null if none)
+   */
   public void endOfAnalysis(ProjectContextModelReader projectContextModel) {
     visitor.endOfAnalysis(projectContextModel);
     logUndefinedTypes();

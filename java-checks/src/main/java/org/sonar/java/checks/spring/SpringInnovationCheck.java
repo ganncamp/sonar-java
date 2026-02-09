@@ -43,11 +43,23 @@ public class SpringInnovationCheck extends IssuableSubscriptionVisitor implement
   record Location(AnalyzerMessage analyzerMessage) {}
   Map<String, Set<Location>> injections = new HashMap<>();
 
+  /**
+   * Specify which AST node kinds the visitor will traverse.
+   *
+   * @return a list of `Tree.Kind` values to visit; contains only `Tree.Kind.CLASS`
+   */
   @Override
   public List<Tree.Kind> nodesToVisit() {
     return List.of(Tree.Kind.CLASS);
   }
 
+  /**
+   * Collects fields annotated with Spring injection annotations and records analyzer messages grouped by field type for later reporting.
+   *
+   * For each visited class, finds variable members annotated with the configured Spring injection annotations, creates an
+   * AnalyzerMessage anchored at the variable's simple name, and stores that message in the `injections` map under the
+   * variable type's fully qualified name.
+   */
   @Override
   public void visitNode(Tree tree) {
     if (tree instanceof ClassTree classTree) {
@@ -69,10 +81,25 @@ public class SpringInnovationCheck extends IssuableSubscriptionVisitor implement
     }
   }
 
+  /**
+   * Checks if the given symbol metadata has any of the specified annotations.
+   *
+   * @param classSymbolMetadata the symbol metadata to inspect
+   * @param annotationName one or more annotation fully-qualified names to look for
+   * @return `true` if any of the specified annotation names are present on the symbol, `false` otherwise
+   */
   private static boolean hasAnnotation(SymbolMetadata classSymbolMetadata, String... annotationName) {
     return Arrays.stream(annotationName).anyMatch(classSymbolMetadata::isAnnotatedWith);
   }
 
+  /**
+   * Report previously collected injection locations when the injected type has more than one available implementation.
+   *
+   * Iterates over the recorded injections and, for each type whose project model lists more than one implementation,
+   * reports the associated AnalyzerMessage for each recorded location.
+   *
+   * @param context the module scanner context providing access to the project model and reporting facilities
+   */
   @Override
   public void endOfAnalysis(ModuleScannerContext context) {
     var defaultContext = (DefaultModuleScannerContext) context;
