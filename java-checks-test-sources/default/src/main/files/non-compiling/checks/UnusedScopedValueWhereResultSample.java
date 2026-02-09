@@ -18,7 +18,7 @@ void main() {
 }
 
 void escapedCarrierFunctionCall() {
-  var carrier = ScopedValue.where(myScopedValue, "hello"); // ccompliant - the result escapes
+  var carrier = ScopedValue.where(myScopedValue, "hello"); // Compliant - the result escapes
   usedCarrierArgument(carrier);
 }
 
