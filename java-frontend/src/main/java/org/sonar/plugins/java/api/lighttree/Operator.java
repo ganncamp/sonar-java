@@ -162,9 +162,9 @@ public sealed interface Operator {
 
   enum AssignmentOperator implements Operator {
     ASSIG("="), ADD_ASSIG("+="), SUB_ASSIG("-="),
-    MUL_ASSIG("%="), DIV_ASSIG("/="), MOD_ASSIG("%="),
-    AND_ASSIG("&="), XOR_ASSIG("^="), OR_ASSIG("|="),
-    SHIFTL_ASSIG("<<="), SHIFTR_ARITH_ASSIG(">>"), SHR_LOGICAL_ASSIG(">>>");
+      MUL_ASSIG("*="), DIV_ASSIG("/="), MOD_ASSIG("%="),
+      AND_ASSIG("&="), XOR_ASSIG("^="), OR_ASSIG("|="),
+      SHIFTL_ASSIG("<<="), SHIFTR_ARITH_ASSIG(">>="), SHR_LOGICAL_ASSIG(">>>=");
 
     private final String code;
 
