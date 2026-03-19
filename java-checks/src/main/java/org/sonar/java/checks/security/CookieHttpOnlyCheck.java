@@ -47,7 +47,7 @@ import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.TypeTree;
 import org.sonar.plugins.java.api.tree.VariableTree;
 
-import static org.sonar.java.checks.helpers.MethodTreeUtils.getIdentifier;
+import static org.sonar.java.model.ExpressionUtils.methodName;
 
 @Rule(key = "S3330")
 public class CookieHttpOnlyCheck extends IssuableSubscriptionVisitor {
@@ -342,7 +342,7 @@ public class CookieHttpOnlyCheck extends IssuableSubscriptionVisitor {
     return mit.arguments().size() == 1
       && mit.methodSymbol().isMethodSymbol()
       && CLASSES.stream().anyMatch(mit.methodSymbol().owner().type()::isSubtypeOf)
-      && SETTER_NAMES.contains(getIdentifier(mit).name())
+        && SETTER_NAMES.contains(methodName(mit).name())
       && isIgnoredBuilder(mit);
   }
 
@@ -351,7 +351,7 @@ public class CookieHttpOnlyCheck extends IssuableSubscriptionVisitor {
       return true;
     }
     return getMethodChain(mit)
-      .filter(method -> "builder".contains(getIdentifier(method).name()))
+      .filter(method -> "builder".contains(methodName(method).name()))
       .noneMatch(method -> isIgnoredCookieName(method.arguments()));
   }
 

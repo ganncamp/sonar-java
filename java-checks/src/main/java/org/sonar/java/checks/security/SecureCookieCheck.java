@@ -40,7 +40,7 @@ import org.sonar.plugins.java.api.tree.NewClassTree;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.VariableTree;
 
-import static org.sonar.java.checks.helpers.MethodTreeUtils.getIdentifier;
+import static org.sonar.java.model.ExpressionUtils.methodName;
 
 @Rule(key = "S2092")
 public class SecureCookieCheck extends IssuableSubscriptionVisitor {
@@ -218,7 +218,7 @@ public class SecureCookieCheck extends IssuableSubscriptionVisitor {
       && !mit.methodSymbol().isUnknown()
       && !mit.methodSymbol().owner().isUnknown()
       && isCookieClass(mit.methodSymbol().owner().type())
-      && SETTER_NAMES.stream().anyMatch(getIdentifier(mit).name()::equals);
+      && SETTER_NAMES.stream().anyMatch(methodName(mit).name()::equals);
   }
 
   private static boolean isCookieClass(Type type) {
