@@ -66,6 +66,12 @@ void variableReassignedBeforeUse() {
   });
 }
 
+void variableReassignedAfterUse() {
+  var carrier = ScopedValue.where(SCOPED, "hello"); // Compliant - first value is consumed
+  carrier.run(() -> {});
+  carrier = ScopedValue.where(SCOPED, "world"); // Noncompliant
+}
+
 void multipleVariablesSameCarrierUsed() {
   var carrier1 = ScopedValue.where(SCOPED, "hello"); // Compliant - used via carrier2 reference... actually no, different objects
   var carrier2 = carrier1; // Carrier2 points to same object

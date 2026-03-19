@@ -16,6 +16,7 @@
  */
 package org.sonar.java.checks;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.sonar.check.Rule;
@@ -28,7 +29,6 @@ import org.sonar.plugins.java.api.tree.ConditionalExpressionTree;
 import org.sonar.plugins.java.api.tree.IdentifierTree;
 import org.sonar.plugins.java.api.tree.MemberSelectExpressionTree;
 import org.sonar.plugins.java.api.tree.MethodInvocationTree;
-import org.sonar.plugins.java.api.tree.NewClassTree;
 import org.sonar.plugins.java.api.tree.ReturnStatementTree;
 import org.sonar.plugins.java.api.tree.Tree;
 import org.sonar.plugins.java.api.tree.VariableTree;
@@ -95,8 +95,25 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
       return;
     }
 
-    // Check if result is assigned to a field (escapes)
-    if (parent instanceof AssignmentExpressionTree) {
+    // Check if result is assigned via = (reassignment to a local variable)
+    if (parent instanceof AssignmentExpressionTree assignment) {
+      if (assignment.variable() instanceof IdentifierTree id) {
+        Symbol sym = id.symbol();
+        // If assigned to a non-local (field), it escapes - no issue
+        if (!sym.isLocalVariable()) {
+          return;
+        }
+        // Local variable reassignment: check if the new value is properly used after this point
+        if (sym.isVariableSymbol()) {
+          List<IdentifierTree> usages = ((Symbol.VariableSymbol) sym).usages();
+          boolean usedAfter = usages.stream()
+            .filter(u -> isBefore(id, u))
+            .anyMatch(u -> isUsageValid(u, new HashSet<>()));
+          if (!usedAfter) {
+            reportIssue(mit, MESSAGE);
+          }
+        }
+      }
       return;
     }
 
@@ -136,7 +153,7 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
       return;
     }
 
-    boolean isProperlyUsed = usages.stream().anyMatch(this::isUsageValid);
+    boolean isProperlyUsed = usages.stream().anyMatch(u -> isUsageValid(u, new HashSet<>()));
 
     if (!isProperlyUsed) {
       reportIssue(variableTree.simpleName(), MESSAGE);
@@ -149,11 +166,11 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
       Tree parent = usage.parent();
       if (parent instanceof AssignmentExpressionTree assignment && assignment.variable() == usage) {
         // This is a reassignment - check if there's any proper use before this reassignment
-        // For simplicity, if we see a reassignment and no proper use, consider it unused
+        Set<Symbol> visited = new HashSet<>();
         boolean hasProperUseBefore = usages.stream()
           .filter(u -> u != usage)
           .filter(u -> isBefore(u, usage))
-          .anyMatch(this::isUsageValid);
+          .anyMatch(u -> isUsageValid(u, visited));
         if (!hasProperUseBefore) {
           return true;
         }
@@ -170,7 +187,13 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
     return symbol.type().is("java.lang.ScopedValue$Carrier");
   }
 
-  private boolean isUsageValid(IdentifierTree usage) {
+  /**
+   * Checks whether a usage of a carrier variable is a valid consumption (run/call),
+   * a chained where() that eventually gets consumed, or an escape (return/argument).
+   *
+   * @param visited tracks already-visited symbols to prevent unbounded recursion on aliased variables
+   */
+  private boolean isUsageValid(IdentifierTree usage, Set<Symbol> visited) {
     Tree parent = usage.parent();
 
     // Check if usage is a reassignment (left side of assignment) - not a valid use
@@ -201,8 +224,9 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
         return true;
       }
       // If assigned to a local variable, check if that variable is properly used
-      if (targetSymbol.isVariableSymbol()) {
-        return targetSymbol.usages().stream().anyMatch(this::isUsageValid);
+      // Use visited set to prevent infinite recursion on aliased variables
+      if (targetSymbol.isVariableSymbol() && visited.add(targetSymbol)) {
+        return targetSymbol.usages().stream().anyMatch(u -> isUsageValid(u, visited));
       }
     }
 
@@ -247,7 +271,7 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
     if (parent instanceof VariableTree varTree) {
       Symbol symbol = varTree.symbol();
       if (symbol.isVariableSymbol()) {
-        return symbol.usages().stream().anyMatch(this::isUsageValid);
+        return symbol.usages().stream().anyMatch(u -> isUsageValid(u, new HashSet<>()));
       }
     }
 
@@ -276,13 +300,6 @@ public class UnusedScopedValueWhereResultCheck extends IssuableSubscriptionVisit
       return isEscaping(parent);
     }
 
-    // Passed to constructor
-    if (parent instanceof NewClassTree newClass) {
-      return newClass.arguments().contains(tree);
-    }
-
     return false;
   }
 }
-
-
