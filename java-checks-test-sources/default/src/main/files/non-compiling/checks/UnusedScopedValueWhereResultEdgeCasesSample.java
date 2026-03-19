@@ -73,17 +73,33 @@ void variableReassignedAfterUse() {
 }
 
 void multipleVariablesSameCarrierUsed() {
-  var carrier1 = ScopedValue.where(SCOPED, "hello"); // Compliant - used via carrier2 reference... actually no, different objects
-  var carrier2 = carrier1; // Carrier2 points to same object
-  carrier2.run(() -> {
-  });
-}
+    var carrier1 = ScopedValue.where(SCOPED, "hello"); // Compliant - used via carrier2 reference... actually no, different objects
+    var carrier2 = carrier1; // Carrier2 points to same object
+    carrier2.run(() -> {
+    });
+  }
 
 
-void multipleVariablesSameCarrierUnused() {
-  var carrier1 = ScopedValue.where(SCOPED, "hello"); // Noncompliant
-  var carrier2 = carrier1; // Carrier2 points to same object but is never used
-}
+  void multipleVariablesSameCarrierUnused() {
+    var carrier1 = ScopedValue.where(SCOPED, "hello"); // Noncompliant
+    var carrier2 = carrier1; // Carrier2 points to same object but is never used
+  }
+
+  void deeplyChainedAliasesConsumed() {
+    var a = ScopedValue.where(SCOPED, "hello"); // Compliant - eventually consumed via chain of aliases
+    var b = a;
+    var c = b;
+    var d = c;
+    d.run(() -> {});
+  }
+
+  void deeplyChainedAliasesUnused() {
+    var a = ScopedValue.where(SCOPED, "hello"); // Noncompliant
+    var b = a;
+    var c = b;
+    var d = c;
+    // d is never used
+  }
 
 void multipleVariablesOneUnused() {
   var usedCarrier = ScopedValue.where(SCOPED, "hello"); // Compliant
