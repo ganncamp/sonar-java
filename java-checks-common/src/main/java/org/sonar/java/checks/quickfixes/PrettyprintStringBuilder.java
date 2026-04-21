@@ -40,7 +40,9 @@ public final class PrettyprintStringBuilder {
   }
 
   public PrettyprintStringBuilder decIndent() {
-    indentLevel -= 1;
+    if (indentLevel > 0) {
+      indentLevel -= 1;
+    }
     return this;
   }
 
