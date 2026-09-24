@@ -174,7 +174,7 @@
                 <artifactItem>
                   <groupId>org.springframework</groupId>
                   <artifactId>spring-webmvc</artifactId>
-                  <version>4.3.3.RELEASE</version>
+                  <version>6.2.19</version>
                   <type>jar</type>
                 </artifactItem>
                 <artifactItem>
